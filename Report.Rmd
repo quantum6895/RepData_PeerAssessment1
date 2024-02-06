@@ -1,0 +1,123 @@
+---
+title: "Reproducible Research: Peer Assessment 1"
+output: html_document
+---
+
+## Loading and preprocessing the data
+
+```{r data}
+##Loading data
+data <- read.csv(file = "~/R Working Directory/repdata_data_activity/activity.csv")
+
+##Dealing with Date variable
+data$date <- as.POSIXct(data$date, format = "%Y-%m-%d")
+```
+
+## Histogram of the total number of steps taken each day
+
+### Creating a new dataset called n_steps
+
+```{r Steps}
+library(dplyr)
+n_steps <- summarize(group_by(.data = data , date) , Steps = sum(steps))
+n_steps
+```
+
+### Histogram
+
+```{r Hist_Steps, warning=FALSE}
+library(ggplot2)
+g <- ggplot(n_steps , aes(x = date , y = Steps))
+g+geom_col()
+
+```
+
+## Mean and median number of steps taken each day
+
+```{r Mean_and_median}
+Mean <- mean(n_steps$Steps , na.rm = TRUE)
+Median <- median(n_steps$Steps , na.rm = TRUE)
+cat("Mean = " , Mean , "\n")
+cat("Median = " , Median)
+```
+
+## Time series plot of the average number of steps taken
+
+### Creating a new dataset called avg_steps
+
+```{r Avg_Steps}
+avg_steps <- summarize(group_by(.data = data , interval) , Steps = mean(steps , na.rm = TRUE))
+avg_steps
+```
+
+### Time Series Plot
+
+```{r Time_series_plot, warning=FALSE}
+g <- ggplot(avg_steps , aes(x = interval , y = Steps))
+g+geom_line(size = 1 , col = "blue")
+```
+
+## The 5-minute interval that, on average, contains the maximum number of steps
+
+```{r Max_Steps}
+filter(avg_steps , avg_steps$Steps == max(avg_steps$Steps))
+```
+
+## Missing values
+
+### total number of missing values in the dataset
+
+```{r n_missing}
+sum(is.na(data))
+```
+
+### Using average interval for imputing missing data
+
+```{r imputing_na}
+data_imputed <- data
+for (i in 1:17568) {
+  if (is.na(data_imputed$steps[i]))  {
+    interval <- data_imputed$interval[i]
+    data_imputed$steps[i] <- avg_steps$Steps[avg_steps$interval == interval]
+  }
+}
+```
+
+### Histogram after imputing
+
+```{r Hist_steps2}
+n_steps <- summarize(group_by(.data = data_imputed , date) , Steps = sum(steps))
+g <- ggplot(n_steps , aes(x = date , y = Steps))
+g+geom_col()
+```
+
+## Panel plot for weekdays and weekends
+
+### Adding a factor variable to the dataset
+
+```{r factor_var}
+data_imputed$day <- ""
+for (i in 1:17568) {
+  if (weekdays(data_imputed$date[i]) == "Saturday" | weekdays(data_imputed$date[i]) == "Sunday" ) {
+    data_imputed$day[i] <- "Weekend"}
+  else{
+    data_imputed$day[i] <- "Weekday" 
+  }
+}
+data_imputed$day <- factor(x = data_imputed$day)
+data_imputed
+```
+
+### Creating a new dataset called avg_steps
+
+```{r avg_steps2, message=FALSE, warning=FALSE}
+avg_steps <- summarize(group_by(.data = data_imputed , interval , day ) , Steps = mean(steps))
+avg_steps
+```
+
+### Panel plot
+
+```{r Panel_plot}
+g <- ggplot(data = avg_steps , aes(interval , Steps)) + geom_line()
+g+ facet_grid(rows = vars(day))
+```
